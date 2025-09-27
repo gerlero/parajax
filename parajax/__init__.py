@@ -39,7 +39,7 @@ def pvmap(
     array arguments and distributes the computation across multiple devices.
     """
     if max_devices is not None and max_devices < 1:
-        msg = "max_workers must be at least 1"
+        msg = "max_devices must be at least 1"
         raise ValueError(msg)
 
     @functools.wraps(func)
@@ -51,7 +51,7 @@ def pvmap(
         device_count = jax.device_count()
         if max_devices is not None and max_devices > device_count:
             msg = (
-                "max_workers cannot be greater than the number of "
+                "max_devices cannot be greater than the number of "
                 f"available JAX devices (={device_count})"
             )
             raise ValueError(msg)
