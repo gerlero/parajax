@@ -46,3 +46,7 @@ ys = square(xs)
 ```
 
 That's it! Invocations of `square` will now be automatically parallelized across all available devices.
+
+## Documentation
+
+For more details, check out the [documentation](https://parajax.readthedocs.io/).
