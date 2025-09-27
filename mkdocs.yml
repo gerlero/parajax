@@ -1,0 +1,32 @@
+theme:
+    name: material
+
+site_name: Parajax
+site_description: The documentation for the Parajax library.
+site_author: Gabriel S. Gerlero
+site_url: https://parajax.readthedocs.io/
+
+repo_url: https://github.com/gerlero/parajax
+repo_name: gerlero/parajax
+
+strict: true
+
+plugins:
+    - search
+    - mkdocstrings:
+        handlers:
+            python:
+                options:
+                    show_if_no_docstring: true
+                    show_root_heading: true
+                    show_signature_annotations: true
+                    show_symbol_type_toc: true
+
+
+markdown_extensions:
+    - admonition
+    - pymdownx.details
+    - pymdownx.superfences
+
+nav:
+    - 'index.md'

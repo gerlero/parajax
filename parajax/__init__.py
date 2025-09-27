@@ -19,6 +19,25 @@ def pvmap(
     *,
     max_devices: int | None = None,
 ) -> Callable[_P, _T]:
+    """Parallel vectorizing map. Creates a parallelized version of `func` that maps
+    over the leading axis of array arguments.
+
+    This function is similar to `jax.vmap` but it automatically distributes the
+    computation across multiple devices.
+
+    **Arguments:**
+
+    - `func`: The function to be parallelized. It should accept array arguments with a
+      leading batch dimension. Keyword arguments are not supported.
+      If you need to pass keyword arguments or other non-batched arguments,
+      consider using `functools.partial` or a lambda function as `func`.
+    - `max_devices`: The maximum number of devices to use for parallelization.
+
+    **Returns:**
+
+    Parallel-vectorized version of `func`, which maps over the leading axis of
+    array arguments and distributes the computation across multiple devices.
+    """
     if max_devices is not None and max_devices < 1:
         msg = "max_workers must be at least 1"
         raise ValueError(msg)
