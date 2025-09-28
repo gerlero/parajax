@@ -38,11 +38,14 @@ def test_multiple_args() -> None:
 
 def test_vmap_compatibility() -> None:
     def f(
-        x: tuple[float | jax.Array, float | jax.Array],
+        x: tuple[float | jax.Array, float | jax.Array], *, z: float | jax.Array
     ) -> dict[str, float | jax.Array]:
-        return {"result": x[0] + x[1]}
+        return {"result": x[0] + x[1] + z}
 
     x = jnp.arange(97)
     y = jnp.arange(97, 0, -1)
+    z = jnp.arange(97, 194)
 
-    assert jnp.all(pvmap(f)((x, y))["result"] == jax.vmap(f)((x, y))["result"])
+    assert jnp.all(
+        pvmap(f)((x, y), z=z)["result"] == jax.vmap(f)((x, y), z=z)["result"]
+    )
