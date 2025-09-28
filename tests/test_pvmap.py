@@ -1,4 +1,5 @@
 import multiprocessing
+from typing import Literal
 
 import jax
 import jax.numpy as jnp
@@ -49,3 +50,18 @@ def test_vmap_compatibility() -> None:
     assert jnp.all(
         pvmap(f)((x, y), z=z)["result"] == jax.vmap(f)((x, y), z=z)["result"]
     )
+
+
+@pytest.mark.parametrize("max_devices", [None, 1, 2])
+@pytest.mark.parametrize("remainder_strategy", ["pad", "strict"])
+def test_options(
+    *, max_devices: int, remainder_strategy: Literal["pad", "strict"]
+) -> None:
+    @pvmap(max_devices=max_devices, remainder_strategy=remainder_strategy)
+    def square(x: float | jax.Array) -> float | jax.Array:
+        return x**2
+
+    x = jnp.arange(4)
+    y = square(x)
+
+    assert jnp.all(y == x**2)
