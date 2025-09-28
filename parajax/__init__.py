@@ -35,7 +35,7 @@ def pvmap(
     /,
     *,
     max_devices: int | None = None,
-    remainder_strategy: Literal["pad", "strict"] = "pad",
+    remainder_strategy: Literal["pad", "tail", "strict"] = "pad",
 ) -> Callable[_P, _T]: ...
 
 
@@ -43,7 +43,7 @@ def pvmap(
 def pvmap(
     *,
     max_devices: int | None = None,
-    remainder_strategy: Literal["pad", "strict"] = "pad",
+    remainder_strategy: Literal["pad", "tail", "strict"] = "pad",
 ) -> Callable[[Callable[_P, _T]], Callable[_P, _T]]: ...
 
 
@@ -52,7 +52,7 @@ def pvmap(
     /,
     *,
     max_devices: int | None = None,
-    remainder_strategy: Literal["pad", "strict"] = "pad",
+    remainder_strategy: Literal["pad", "tail", "strict"] = "pad",
 ) -> Callable[_P, _T] | Callable[[Callable[_P, _T]], Callable[_P, _T]]:
     """Parallel vectorizing map. Creates a parallelized version of `func` that maps
     over the leading axis of array arguments.
@@ -72,6 +72,8 @@ def pvmap(
           to make the batch size divisible by the number of devices. The padding is done
           by repeating the last element. The output is then unpadded to match the
           original batch size.
+        - `"tail"`: The extra elements that do not fit evenly into the devices are
+          processed in a second pass on only as many devices as needed.
         - `"strict"`: Ensure that the batch size is divisible by the number of devices.
           If not, a `ValueError` is raised.
 
@@ -84,7 +86,7 @@ def pvmap(
         msg = "max_devices must be at least 1"
         raise ValueError(msg)
 
-    if remainder_strategy not in {"pad", "strict"}:
+    if remainder_strategy not in {"pad", "tail", "strict"}:
         msg = f"invalid remainder_strategy: {remainder_strategy}"
         raise ValueError(msg)
 
@@ -141,6 +143,42 @@ def pvmap(
                         raise ValueError(msg)
 
                     return _pmap_strict(vmapped_func, devices, *args, **kwargs)
+
+                case "tail":
+                    remainder_size = batch_size % devices
+                    even_size = batch_size - remainder_size
+
+                    args_even, kwargs_even = jax.tree.map(
+                        lambda x: x[:even_size], (args, kwargs)
+                    )
+
+                    output_even = _pmap_strict(
+                        vmapped_func, devices, *args_even, **kwargs_even
+                    )
+
+                    if remainder_size == 0:
+                        return output_even
+
+                    args_remainder, kwargs_remainder = jax.tree.map(
+                        lambda x: x[even_size:], (args, kwargs)
+                    )
+
+                    output_remainder = _pmap_strict(
+                        vmapped_func,
+                        remainder_size,
+                        *args_remainder,
+                        **kwargs_remainder,
+                    )
+
+                    output_even, output_remainder = jax.device_put(
+                        (output_even, output_remainder), jax.devices()[0]
+                    )
+
+                    return jax.tree.map(
+                        lambda even, rem: jnp.concatenate((even, rem), axis=0),
+                        output_even,
+                        output_remainder,
+                    )
 
                 case "pad":
                     pad_size = (-batch_size) % devices
