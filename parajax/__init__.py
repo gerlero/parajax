@@ -36,6 +36,7 @@ def pvmap(
     *,
     max_devices: int | None = None,
     remainder_strategy: Literal["pad", "tail", "drop", "strict"] = "pad",
+    gather: bool = False,
 ) -> Callable[_P, _T]: ...
 
 
@@ -44,6 +45,7 @@ def pvmap(
     *,
     max_devices: int | None = None,
     remainder_strategy: Literal["pad", "tail", "drop", "strict"] = "pad",
+    gather: bool = False,
 ) -> Callable[[Callable[_P, _T]], Callable[_P, _T]]: ...
 
 
@@ -53,6 +55,7 @@ def pvmap(
     *,
     max_devices: int | None = None,
     remainder_strategy: Literal["pad", "tail", "drop", "strict"] = "pad",
+    gather: bool = False,
 ) -> Callable[_P, _T] | Callable[[Callable[_P, _T]], Callable[_P, _T]]:
     """Parallel vectorizing map. Creates a parallelized version of `func` that maps
     over the leading axis of array arguments.
@@ -78,6 +81,8 @@ def pvmap(
           simply dropped from the input and output.
         - `"strict"`: Ensure that the batch size is divisible by the number of devices.
           If not, a `ValueError` is raised.
+    - `gather`: If `True`, output arrays are gathered back to the first device. If
+      `False`, outputs remain sharded across devices.
 
     **Returns:**
 
@@ -91,6 +96,11 @@ def pvmap(
     if remainder_strategy not in {"pad", "tail", "drop", "strict"}:
         msg = f"invalid remainder_strategy: {remainder_strategy}"
         raise ValueError(msg)
+
+    if not gather and remainder_strategy == "tail":
+        msg = "pvmap: overriding gather to True with remainder_strategy='tail'"
+        warnings.warn(msg, UserWarning, stacklevel=2)
+        gather = True
 
     def pvmap_decorator(func: Callable[_P, _T]) -> Callable[_P, _T]:
         vmapped_func = jax.vmap(func)
@@ -144,7 +154,12 @@ def pvmap(
                         )
                         raise ValueError(msg)
 
-                    return _pmap_strict(vmapped_func, devices, *args, **kwargs)
+                    output = _pmap_strict(vmapped_func, devices, *args, **kwargs)
+
+                    if gather:
+                        output = jax.device_put(output, jax.devices()[0])
+
+                    return output
 
                 case "tail" | "drop":
                     remainder_size = batch_size % devices
@@ -159,6 +174,9 @@ def pvmap(
                     )
 
                     if remainder_strategy == "drop" or remainder_size == 0:
+                        if gather:
+                            output_even = jax.device_put(output_even, jax.devices()[0])
+
                         return output_even
 
                     args_remainder, kwargs_remainder = jax.tree.map(
@@ -196,7 +214,12 @@ def pvmap(
                         vmapped_func, devices, *padded_args, **padded_kwargs
                     )
 
-                    return jax.tree.map(lambda x: x[:batch_size], padded_output)
+                    output = jax.tree.map(lambda x: x[:batch_size], padded_output)
+
+                    if gather:
+                        output = jax.device_put(output, jax.devices()[0])
+
+                    return output
 
         return pvmap_wrapper
 
