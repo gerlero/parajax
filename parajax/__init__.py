@@ -2,7 +2,7 @@ import functools
 import multiprocessing
 import warnings
 from collections.abc import Callable
-from typing import ParamSpec, TypeVar, overload
+from typing import Literal, ParamSpec, TypeVar, overload
 
 import jax
 import jax.numpy as jnp
@@ -12,12 +12,30 @@ _P = ParamSpec("_P")
 _T = TypeVar("_T")
 
 
+def _pmap_strict(
+    func: Callable[_P, _T], devices: int, /, *args: _P.args, **kwargs: _P.kwargs
+) -> _T:
+    return jax.shard_map(
+        lambda args, kwargs: func(
+            *args, **kwargs
+        ),  # shard_map does not support keyword arguments
+        mesh=jax.make_mesh((devices,), ("devices",)),
+        in_specs=P(
+            "devices",
+        ),
+        out_specs=P(
+            "devices",
+        ),
+    )(args, kwargs)
+
+
 @overload
 def pvmap(
     func: Callable[_P, _T],
     /,
     *,
     max_devices: int | None = None,
+    remainder_strategy: Literal["pad", "strict"] = "pad",
 ) -> Callable[_P, _T]: ...
 
 
@@ -25,6 +43,7 @@ def pvmap(
 def pvmap(
     *,
     max_devices: int | None = None,
+    remainder_strategy: Literal["pad", "strict"] = "pad",
 ) -> Callable[[Callable[_P, _T]], Callable[_P, _T]]: ...
 
 
@@ -33,6 +52,7 @@ def pvmap(
     /,
     *,
     max_devices: int | None = None,
+    remainder_strategy: Literal["pad", "strict"] = "pad",
 ) -> Callable[_P, _T] | Callable[[Callable[_P, _T]], Callable[_P, _T]]:
     """Parallel vectorizing map. Creates a parallelized version of `func` that maps
     over the leading axis of array arguments.
@@ -46,6 +66,14 @@ def pvmap(
       leading batch dimension. If you need to also pass non-batched arguments,
       consider using `functools.partial` or a lambda as `func`.
     - `max_devices`: The maximum number of devices to use for parallelization.
+    - `remainder_strategy`: Strategy to handle cases where the batch size is not
+      divisible by the number of devices. Options are:
+        - `"pad"` (default): Transparently pad the input arrays along the leading axis
+          to make the batch size divisible by the number of devices. The padding is done
+          by repeating the last element. The output is then unpadded to match the
+          original batch size.
+        - `"strict"`: Ensure that the batch size is divisible by the number of devices.
+          If not, a `ValueError` is raised.
 
     **Returns:**
 
@@ -54,6 +82,10 @@ def pvmap(
     """
     if max_devices is not None and max_devices < 1:
         msg = "max_devices must be at least 1"
+        raise ValueError(msg)
+
+    if remainder_strategy not in {"pad", "strict"}:
+        msg = f"invalid remainder_strategy: {remainder_strategy}"
         raise ValueError(msg)
 
     def pvmap_decorator(func: Callable[_P, _T]) -> Callable[_P, _T]:
@@ -99,29 +131,32 @@ def pvmap(
 
             devices = min(devices, batch_size)
 
-            pad_size = (-batch_size) % devices
+            match remainder_strategy:
+                case "strict":
+                    if batch_size % devices != 0:
+                        msg = (
+                            f"remainder_strategy='strict' but batch size {batch_size}"
+                            f" is not divisible by the number of devices {devices}"
+                        )
+                        raise ValueError(msg)
 
-            padded_args = jax.tree.map(
-                lambda x: jnp.pad(
-                    x, [(0, pad_size)] + [(0, 0)] * (x.ndim - 1), mode="edge"
-                ),
-                (args, kwargs),
-            )
+                    return _pmap_strict(vmapped_func, devices, *args, **kwargs)
 
-            padded_output = jax.shard_map(
-                lambda padded_args: vmapped_func(
-                    *padded_args[0], **padded_args[1]
-                ),  # shard_map does not support keyword arguments
-                mesh=jax.make_mesh((devices,), ("devices",)),
-                in_specs=P(
-                    "devices",
-                ),
-                out_specs=P(
-                    "devices",
-                ),
-            )(padded_args)
+                case "pad":
+                    pad_size = (-batch_size) % devices
 
-            return jax.tree.map(lambda x: x[:batch_size], padded_output)
+                    padded_args, padded_kwargs = jax.tree.map(
+                        lambda x: jnp.pad(
+                            x, [(0, pad_size)] + [(0, 0)] * (x.ndim - 1), mode="edge"
+                        ),
+                        (args, kwargs),
+                    )
+
+                    padded_output = _pmap_strict(
+                        vmapped_func, devices, *padded_args, **padded_kwargs
+                    )
+
+                    return jax.tree.map(lambda x: x[:batch_size], padded_output)
 
         return pvmap_wrapper
 
