@@ -14,9 +14,8 @@ Automagic parallelization of calls to [JAX](https://github.com/jax-ml/jax)-based
 ## Features
 
 - 🚀 **Device-parallel execution**: run across multiple CPUs, GPUs or TPUs automatically
-- 🔄 **Drop-in replacement** for [`jax.vmap`](https://docs.jax.dev/en/latest/_autosummary/jax.vmap.html)
 - ⚡ **JIT-compatible**: works with [`jax.jit`](https://docs.jax.dev/en/latest/_autosummary/jax.jit.html) and [variants](https://docs.kidger.site/equinox/api/transformations/#equinox.filter_jit)
-- 🪄 **Transparent padding** when batch sizes aren’t divisible by number of devices
+- 🪄 **Automatic handling** of input shapes not divisible by the number of devices
 - 🎯 **Simple interface**: just decorate your function with `pvmap`
 
 ## Installation
@@ -38,7 +37,7 @@ jax.config.update("jax_num_cpu_devices", multiprocessing.cpu_count())
 # ^ Only needed on CPU: allow JAX to use all CPU cores
 
 @pvmap
-def square(x: float) -> float:
+def square(x):
     return x**2
 
 xs = jnp.arange(97)
