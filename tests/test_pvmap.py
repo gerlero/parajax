@@ -4,14 +4,14 @@ from typing import Literal
 import jax
 import jax.numpy as jnp
 import pytest
-from parajax import pvmap
+from parajax import autopmap
 
 jax.config.update("jax_num_cpu_devices", multiprocessing.cpu_count())
 
 
 @pytest.mark.parametrize("x", [jnp.arange(97), jnp.arange(97 * 2).reshape(97, 2)])
 def test_square(x: jnp.ndarray) -> None:
-    @pvmap
+    @autopmap
     def square(x: float) -> float:
         return x**2
 
@@ -26,7 +26,7 @@ def test_square(x: jnp.ndarray) -> None:
 
 
 def test_multiple_args() -> None:
-    @pvmap
+    @autopmap
     def add_mul(x: float, y: float) -> tuple[float, float]:
         return x + y, x * y
 
@@ -38,6 +38,7 @@ def test_multiple_args() -> None:
 
 
 def test_vmap_compatibility() -> None:
+    @jax.vmap
     def f(
         x: tuple[float | jax.Array, float | jax.Array], *, z: float | jax.Array
     ) -> dict[str, float | jax.Array]:
@@ -47,9 +48,7 @@ def test_vmap_compatibility() -> None:
     y = jnp.arange(97, 0, -1)
     z = jnp.arange(97, 194)
 
-    assert jnp.all(
-        pvmap(f)((x, y), z=z)["result"] == jax.vmap(f)((x, y), z=z)["result"]
-    )
+    assert jnp.all(autopmap(f)((x, y), z=z)["result"] == f((x, y), z=z)["result"])
 
 
 @pytest.mark.parametrize("max_devices", [None, 1, 2])
@@ -57,7 +56,7 @@ def test_vmap_compatibility() -> None:
 def test_options(
     *, max_devices: int, remainder_strategy: Literal["pad", "tail", "drop", "strict"]
 ) -> None:
-    @pvmap(max_devices=max_devices, remainder_strategy=remainder_strategy)
+    @autopmap(max_devices=max_devices, remainder_strategy=remainder_strategy)
     def square(x: float | jax.Array) -> float | jax.Array:
         return x**2
 

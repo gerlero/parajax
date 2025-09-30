@@ -30,7 +30,7 @@ def _pmap_strict(
 
 
 @overload
-def pvmap(
+def autopmap(
     func: Callable[_P, _T],
     /,
     *,
@@ -41,7 +41,7 @@ def pvmap(
 
 
 @overload
-def pvmap(
+def autopmap(
     *,
     max_devices: int | None = None,
     remainder_strategy: Literal["pad", "tail", "drop", "strict"] = "pad",
@@ -49,7 +49,7 @@ def pvmap(
 ) -> Callable[[Callable[_P, _T]], Callable[_P, _T]]: ...
 
 
-def pvmap(
+def autopmap(
     func: Callable[_P, _T] | None = None,
     /,
     *,
@@ -57,11 +57,9 @@ def pvmap(
     remainder_strategy: Literal["pad", "tail", "drop", "strict"] = "pad",
     gather: bool = False,
 ) -> Callable[_P, _T] | Callable[[Callable[_P, _T]], Callable[_P, _T]]:
-    """Parallel vectorizing map. Creates a parallelized version of `func` that maps
-    over the leading axis of array arguments.
-
-    This function is similar to `jax.vmap` but it automatically distributes the
-    computation across multiple devices.
+    """Automatic parallelizing map. Creates a parallelized version of `func` that
+    distributes computation of the leading axis of array arguments across multiple
+    devices.
 
     **Arguments:**
 
@@ -86,8 +84,7 @@ def pvmap(
 
     **Returns:**
 
-    Parallel-vectorized version of `func`, which maps over the leading axis of
-    array arguments and distributes the computation across multiple devices.
+    Parallel version of `func`, with the same signature as `func`.
     """
     if max_devices is not None and max_devices < 1:
         msg = "max_devices must be at least 1"
@@ -103,8 +100,6 @@ def pvmap(
         gather = True
 
     def pvmap_decorator(func: Callable[_P, _T]) -> Callable[_P, _T]:
-        vmapped_func = jax.vmap(func)
-
         @functools.wraps(func)
         def pvmap_wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _T:
             device_count = jax.device_count()
@@ -154,7 +149,7 @@ def pvmap(
                         )
                         raise ValueError(msg)
 
-                    output = _pmap_strict(vmapped_func, devices, *args, **kwargs)
+                    output = _pmap_strict(func, devices, *args, **kwargs)
 
                     if gather:
                         output = jax.device_put(output, jax.devices()[0])
@@ -169,9 +164,7 @@ def pvmap(
                         lambda x: x[:even_size], (args, kwargs)
                     )
 
-                    output_even = _pmap_strict(
-                        vmapped_func, devices, *args_even, **kwargs_even
-                    )
+                    output_even = _pmap_strict(func, devices, *args_even, **kwargs_even)
 
                     if remainder_strategy == "drop" or remainder_size == 0:
                         if gather:
@@ -184,7 +177,7 @@ def pvmap(
                     )
 
                     output_remainder = _pmap_strict(
-                        vmapped_func,
+                        func,
                         remainder_size,
                         *args_remainder,
                         **kwargs_remainder,
@@ -211,7 +204,7 @@ def pvmap(
                     )
 
                     padded_output = _pmap_strict(
-                        vmapped_func, devices, *padded_args, **padded_kwargs
+                        func, devices, *padded_args, **padded_kwargs
                     )
 
                     output = jax.tree.map(lambda x: x[:batch_size], padded_output)
