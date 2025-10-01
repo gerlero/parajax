@@ -64,9 +64,10 @@ def autopmap(
     **Arguments:**
 
     - `func`: The function to be parallelized. It should accept array arguments with a
-      leading batch dimension. If you need to also pass non-batched arguments,
-      consider using `functools.partial` or a lambda as `func`.
-    - `max_devices`: The maximum number of devices to use for parallelization.
+      leading batch dimension. If your function cannot work in a batched manner, you can
+      wrap it with `jax.vmap` first. For passing non-batched arguments, consider using
+      `functools.partial` or a lambda function.
+    - `max_devices`: The maximum number of JAX devices to use for parallelization.
     - `remainder_strategy`: Strategy to handle cases where the batch size is not
       divisible by the number of devices. Options are:
         - `"pad"` (default): Transparently pad the input arrays along the leading axis
