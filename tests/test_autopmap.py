@@ -72,6 +72,21 @@ def test_options(
     assert jnp.all(y == x**2)
 
 
+@pytest.mark.parametrize("gather", [False, True])
+def test_output_sharding(*, gather: bool) -> None:
+    @autopmap(gather=gather)
+    def f(x: jax.Array) -> jax.Array:
+        return x
+
+    x = jnp.arange(97)
+    y = f(x)
+
+    if gather:
+        assert isinstance(y.sharding, jax.sharding.SingleDeviceSharding)
+    else:
+        assert isinstance(y.sharding, jax.sharding.NamedSharding)
+
+
 def test_invalid() -> None:
     with pytest.raises(ValueError, match="max_devices"):
         autopmap(max_devices=0)(lambda x: x)
