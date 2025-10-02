@@ -83,3 +83,9 @@ def test_invalid() -> None:
     f = autopmap(remainder_strategy="strict", max_devices=2)(lambda x: x)
     with pytest.raises(ValueError, match="strict"):
         f(jnp.arange(3))
+
+    with pytest.raises(ValueError, match="no arguments"):
+        autopmap(lambda: None)()
+
+    with pytest.raises(ValueError, match="max_devices"):
+        autopmap(max_devices=1000)(lambda x: x)(jnp.arange(10))
