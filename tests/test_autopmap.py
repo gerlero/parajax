@@ -64,3 +64,22 @@ def test_options(
     y = square(x)
 
     assert jnp.all(y == x**2)
+
+
+def test_invalid() -> None:
+    with pytest.raises(ValueError, match="max_devices"):
+        autopmap(max_devices=0)(lambda x: x)
+
+    with pytest.raises(ValueError, match="remainder_strategy"):
+        autopmap(remainder_strategy="invalid")(lambda x: x)  # ty: ignore[invalid-argument-type]
+
+    @autopmap
+    def f(x: jax.Array, y: jax.Array) -> jax.Array:
+        return x + y
+
+    with pytest.raises(ValueError, match="mismatched"):
+        f(jnp.arange(10), jnp.arange(5))
+
+    f = autopmap(remainder_strategy="strict", max_devices=2)(lambda x: x)
+    with pytest.raises(ValueError, match="strict"):
+        f(jnp.arange(3))
