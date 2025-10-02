@@ -53,10 +53,16 @@ def test_vmap_compatibility() -> None:
 
 @pytest.mark.parametrize("max_devices", [None, 1, 2])
 @pytest.mark.parametrize("remainder_strategy", ["pad", "tail", "drop", "strict"])
+@pytest.mark.parametrize("gather", [False, True])
 def test_options(
-    *, max_devices: int, remainder_strategy: Literal["pad", "tail", "drop", "strict"]
+    *,
+    max_devices: int,
+    remainder_strategy: Literal["pad", "tail", "drop", "strict"],
+    gather: bool,
 ) -> None:
-    @autopmap(max_devices=max_devices, remainder_strategy=remainder_strategy)
+    @autopmap(
+        max_devices=max_devices, remainder_strategy=remainder_strategy, gather=gather
+    )
     def square(x: float | jax.Array) -> float | jax.Array:
         return x**2
 
