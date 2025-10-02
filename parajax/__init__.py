@@ -96,13 +96,13 @@ def autopmap(
         raise ValueError(msg)
 
     if not gather and remainder_strategy == "tail":
-        msg = "pvmap: overriding gather to True with remainder_strategy='tail'"
+        msg = "autopmap: overriding gather to True with remainder_strategy='tail'"
         warnings.warn(msg, UserWarning, stacklevel=2)
         gather = True
 
-    def pvmap_decorator(func: Callable[_P, _T]) -> Callable[_P, _T]:
+    def autopmap_decorator(func: Callable[_P, _T]) -> Callable[_P, _T]:
         @functools.wraps(func)
-        def pvmap_wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _T:
+        def autopmap_wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _T:
             device_count = jax.device_count()
             if max_devices is not None and max_devices > device_count:
                 msg = (
@@ -113,8 +113,8 @@ def autopmap(
 
             if max_devices != 1 and device_count == 1:
                 msg = (
-                    "pvmap: parallelization requested but only a single JAX device is"
-                    " available"
+                    "autopmap: parallelization requested but only a single JAX device"
+                    " is available"
                 )
                 if jax.default_backend() == "cpu" and multiprocessing.cpu_count() > 1:
                     msg += (
@@ -215,6 +215,6 @@ def autopmap(
 
                     return output
 
-        return pvmap_wrapper
+        return autopmap_wrapper
 
-    return pvmap_decorator(func) if func is not None else pvmap_decorator
+    return autopmap_decorator(func) if func is not None else autopmap_decorator
