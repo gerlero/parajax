@@ -52,9 +52,6 @@ Homepage = "https://github.com/gerlero/parajax"
 Repository = "https://github.com/gerlero/parajax"
 Documentation = "https://parajax.readthedocs.io/"
 
-[tool.uv.build-backend]
-module-root = "."
-
 [tool.ruff.lint]
 extend-select = ["ALL"]
 extend-ignore = [
