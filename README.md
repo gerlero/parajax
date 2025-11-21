@@ -3,6 +3,7 @@
 
   **Automagic parallelization of calls to [JAX](https://github.com/jax-ml/jax)-based functions**
 
+  [![Documentation](https://img.shields.io/readthedocs/parajax)](https://parajax.readthedocs.io/)
   [![CI](https://github.com/gerlero/parajax/actions/workflows/ci.yml/badge.svg)](https://github.com/gerlero/parajax/actions/workflows/ci.yml)
   [![Codecov](https://codecov.io/gh/gerlero/parajax/branch/main/graph/badge.svg)](https://codecov.io/gh/gerlero/parajax)
   [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
