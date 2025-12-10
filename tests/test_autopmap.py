@@ -12,7 +12,7 @@ jax.config.update("jax_num_cpu_devices", multiprocessing.cpu_count())
 @pytest.mark.parametrize("x", [jnp.arange(97), jnp.arange(97 * 2).reshape(97, 2)])
 def test_square(x: jnp.ndarray) -> None:
     @autopmap
-    def square(x: float) -> float:
+    def square(x: float | jax.Array) -> float | jax.Array:
         return x**2
 
     y = square(x)
@@ -27,7 +27,9 @@ def test_square(x: jnp.ndarray) -> None:
 
 def test_multiple_args() -> None:
     @autopmap
-    def add_mul(x: float, y: float) -> tuple[float, float]:
+    def add_mul(
+        x: float | jax.Array, y: float | jax.Array
+    ) -> tuple[float | jax.Array, float | jax.Array]:
         return x + y, x * y
 
     x = jnp.arange(97)
