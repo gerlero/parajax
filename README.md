@@ -40,10 +40,10 @@ jax.config.update("jax_num_cpu_devices", multiprocessing.cpu_count())
 # ^ Only needed on CPU: allow JAX to use all CPU cores
 
 @parallelize
-def square(x):
-    return x**2
+def square(xs):
+    return xs**2
 
-xs = jnp.arange(97)
+xs = jnp.arange(12_345)
 ys = square(xs)
 ```
 
