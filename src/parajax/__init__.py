@@ -36,7 +36,6 @@ def autopmap(
     *,
     max_devices: int | None = None,
     remainder_strategy: Literal["pad", "tail", "drop", "strict"] = "pad",
-    gather: bool = False,
 ) -> Callable[_P, _T]: ...
 
 
@@ -45,7 +44,6 @@ def autopmap(
     *,
     max_devices: int | None = None,
     remainder_strategy: Literal["pad", "tail", "drop", "strict"] = "pad",
-    gather: bool = False,
 ) -> Callable[[Callable[_P, _T]], Callable[_P, _T]]: ...
 
 
@@ -55,7 +53,6 @@ def autopmap(
     *,
     max_devices: int | None = None,
     remainder_strategy: Literal["pad", "tail", "drop", "strict"] = "pad",
-    gather: bool = False,
 ) -> Callable[_P, _T] | Callable[[Callable[_P, _T]], Callable[_P, _T]]:
     """Automatic parallelizing map. Creates a parallelized version of `func` that
     distributes computation of the leading axis of array arguments across multiple
@@ -80,8 +77,6 @@ def autopmap(
           simply dropped from the input and output.
         - `"strict"`: Ensure that the batch size is divisible by the number of devices.
           If not, a `ValueError` is raised.
-    - `gather`: If `True`, output arrays are gathered back to the first device. If
-      `False`, outputs remain sharded across devices.
 
     **Returns:**
 
@@ -94,11 +89,6 @@ def autopmap(
     if remainder_strategy not in {"pad", "tail", "drop", "strict"}:
         msg = f"invalid remainder_strategy: {remainder_strategy}"
         raise ValueError(msg)
-
-    if not gather and remainder_strategy == "tail":
-        msg = "autopmap: overriding gather to True with remainder_strategy='tail'"
-        warnings.warn(msg, UserWarning, stacklevel=2)
-        gather = True
 
     def autopmap_decorator(func: Callable[_P, _T]) -> Callable[_P, _T]:
         @functools.wraps(func)
@@ -151,12 +141,7 @@ def autopmap(
                         )
                         raise ValueError(msg)
 
-                    output = _pmap_strict(func, devices, *args, **kwargs)
-
-                    if gather:
-                        output = jax.device_put(output, jax.devices()[0])
-
-                    return output
+                    return _pmap_strict(func, devices, *args, **kwargs)
 
                 case "tail" | "drop":
                     remainder_size = batch_size % devices
@@ -169,9 +154,6 @@ def autopmap(
                     output_even = _pmap_strict(func, devices, *args_even, **kwargs_even)
 
                     if remainder_strategy == "drop" or remainder_size == 0:
-                        if gather:
-                            output_even = jax.device_put(output_even, jax.devices()[0])
-
                         return output_even
 
                     args_remainder, kwargs_remainder = jax.tree.map(
@@ -209,12 +191,7 @@ def autopmap(
                         func, devices, *padded_args, **padded_kwargs
                     )
 
-                    output = jax.tree.map(lambda x: x[:batch_size], padded_output)
-
-                    if gather:
-                        output = jax.device_put(output, jax.devices()[0])
-
-                    return output
+                    return jax.tree.map(lambda x: x[:batch_size], padded_output)
 
         return autopmap_wrapper
 
