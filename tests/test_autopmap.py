@@ -1,5 +1,4 @@
 import multiprocessing
-from typing import Literal
 
 import jax
 import jax.numpy as jnp
@@ -53,21 +52,38 @@ def test_vmap_compatibility() -> None:
     assert jnp.all(autopmap(f)((x, y), z=z)["result"] == f((x, y), z=z)["result"])
 
 
-@pytest.mark.parametrize("max_devices", [None, 1, 2])
-@pytest.mark.parametrize("remainder_strategy", ["pad", "drop", "strict"])
-def test_options(
-    *,
-    max_devices: int,
-    remainder_strategy: Literal["pad", "drop", "strict"],
-) -> None:
-    @autopmap(max_devices=max_devices, remainder_strategy=remainder_strategy)
+@pytest.mark.parametrize("max_devices", range(1, multiprocessing.cpu_count()))
+def test_max_devices(*, max_devices: int) -> None:
+    @autopmap(max_devices=max_devices)
     def square(x: float | jax.Array) -> float | jax.Array:
         return x**2
 
-    x = jnp.arange(4 if remainder_strategy in {"drop", "strict"} else 97)
+    x = jnp.arange(97)
     y = square(x)
 
     assert jnp.all(y == x**2)
+
+
+def test_strict_remainder_strategy() -> None:
+    @autopmap(max_devices=2, remainder_strategy="strict")
+    def square(x: float | jax.Array) -> float | jax.Array:
+        return x**2
+
+    x = jnp.arange(96)
+    y = square(x)
+
+    assert jnp.all(y == x**2)
+
+
+def test_drop_remainder_strategy() -> None:
+    @autopmap(max_devices=2, remainder_strategy="drop")
+    def square(x: float | jax.Array) -> float | jax.Array:
+        return x**2
+
+    x = jnp.arange(97)
+    y = square(x)
+
+    assert jnp.all(y == x[:96] ** 2)
 
 
 def test_invalid() -> None:
