@@ -1,4 +1,5 @@
 import multiprocessing
+import time
 
 import jax
 import jax.numpy as jnp
@@ -84,6 +85,32 @@ def test_drop_remainder_strategy() -> None:
     y = square(x)
 
     assert jnp.all(y == x[:96] ** 2)
+
+
+def test_speedup() -> None:
+    @jax.jit
+    def heavy_compute(x: jax.Array) -> jax.Array:
+        def body_fun(_: object, x: jax.Array) -> jax.Array:
+            return jnp.sin(x) + jnp.cos(x) + jnp.sqrt(x)
+
+        return jax.lax.fori_loop(0, 10_000, body_fun, x)
+
+    parallel_heavy_compute = autopmap(heavy_compute, max_devices=2)
+
+    x = jnp.arange(10_000, dtype=float)
+
+    jax.block_until_ready(parallel_heavy_compute(x))
+    start = time.perf_counter()
+    y_parallel = jax.block_until_ready(parallel_heavy_compute(x))
+    time_parallel = time.perf_counter() - start
+
+    jax.block_until_ready(heavy_compute(x))
+    start = time.perf_counter()
+    y_serial = jax.block_until_ready(heavy_compute(x))
+    time_serial = time.perf_counter() - start
+
+    assert jnp.all(y_parallel == y_serial)
+    assert time_parallel <= 0.6 * time_serial
 
 
 def test_invalid() -> None:
