@@ -1,3 +1,5 @@
+"""Parallelization utilities for JAX."""
+
 import functools
 import multiprocessing
 import warnings
@@ -54,31 +56,71 @@ def parallelize(
     max_devices: int | None = None,
     remainder_strategy: Literal["pad", "drop", "strict"] = "pad",
 ) -> Callable[_P, _T] | Callable[[Callable[_P, _T]], Callable[_P, _T]]:
-    """Automatic parallelizing map. Creates a parallelized version of `func` that
-    distributes computation of the leading axis of array arguments across multiple
-    devices.
+    """Automatic parallelizing map.
 
-    **Arguments:**
+    Creates a parallelized version of `func` that distributes computation of the
+    leading axis of array arguments across multiple devices.
 
-    - `func`: The function to be parallelized. It should accept array arguments with a
-      leading batch dimension. If your function cannot work in a batched manner, you can
-      wrap it with `jax.vmap` first. For passing non-batched arguments, consider using
-      `functools.partial` or a lambda function.
-    - `max_devices`: The maximum number of JAX devices to use for parallelization.
-    - `remainder_strategy`: Strategy to handle cases where the batch size is not
-      divisible by the number of devices. Options are:
+    Args:
+    func: The function to be parallelized. It should accept array arguments with a
+        leading batch dimension. If your function cannot work in a batched manner, you
+        can wrap it with `jax.vmap` first. For passing non-batched arguments, consider
+        using `functools.partial` or a lambda function.
+    max_devices: The maximum number of JAX devices to use for parallelization.
+    remainder_strategy: Strategy to handle cases where the batch size is not
+        divisible by the number of devices. Options are:
         - `"pad"` (default): Transparently pad the input arrays along the leading axis
           to make the batch size divisible by the number of devices. The padding is done
-          by repeating the last element. The output is then unpadded to match the
-          original batch size.
+          by repeating the last element. The output is then automatically unpadded to
+          match the original batch size, with no visible effect to the user.
         - `"drop"`: The extra elements that do not fit evenly into the devices are
-          simply dropped from the input and output.
-        - `"strict"`: Ensure that the batch size is divisible by the number of devices.
-          If not, a `ValueError` is raised.
+          simply dropped from the computation and output.
+        - `"strict"`: Assert that the batch size is divisible by the number of devices.
+          If this is not the case, a `ValueError` is raised.
 
-    **Returns:**
+    Returns:
+        The decorator returns a parallel version of `func` with the same signature.
 
-    Parallel version of `func`, with the same signature as `func`.
+    Basic usage:
+        ```python
+        import jax.numpy as jnp
+        from parajax import parallelize
+
+        @parallelize
+        def square(xs):
+            return xs ** 2
+
+        xs = jnp.arange(12_345)
+        ys = square(xs)  # This will run in parallel across available JAX devices
+        ```
+
+    Setting options:
+        ```python
+        import jax.numpy as jnp
+        from parajax import parallelize
+
+        @parallelize(max_devices=4)
+        def square(xs):
+            return xs ** 2
+
+        xs = jnp.arange(12_345)
+        ys = square(xs)  # Parallelized across 4 devices
+        ```
+
+    Composability with vmap:
+        ```python
+        import jax
+        import jax.numpy as jnp
+        from parajax import parallelize
+
+        @parallelize
+        @jax.vmap
+        def relu_single(x):
+            return jnp.maximum(x, 0)
+
+        xs = jnp.arange(-6_000, 6_000)
+        ys = relu_single(xs)  # Parallelized over the batch
+        ```
     """
     if max_devices is not None and max_devices < 1:
         msg = "max_devices must be at least 1"
