@@ -19,7 +19,7 @@
 - 🚀 **Device-parallel execution**: run across multiple CPUs, GPUs or TPUs automatically
 - ⚡ **Fully composable** with [`jax.jit`](https://docs.jax.dev/en/latest/_autosummary/jax.jit.html), [`jax.vmap`](https://docs.jax.dev/en/latest/_autosummary/jax.vmap.html), and other JAX transformations
 - 🪄 **Automatic handling** of input shapes not divisible by the number of devices
-- 🎯 **Simple interface**: just decorate your function with `autopmap`
+- 🎯 **Simple interface**: just decorate your function with `@parallelize`
 
 ## Installation
 
@@ -34,12 +34,12 @@ import multiprocessing
 
 import jax
 import jax.numpy as jnp
-from parajax import autopmap
+from parajax import parallelize
 
 jax.config.update("jax_num_cpu_devices", multiprocessing.cpu_count())
 # ^ Only needed on CPU: allow JAX to use all CPU cores
 
-@autopmap
+@parallelize
 def square(x):
     return x**2
 

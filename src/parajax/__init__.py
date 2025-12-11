@@ -30,7 +30,7 @@ def _pmap_strict(
 
 
 @overload
-def autopmap(
+def parallelize(
     func: Callable[_P, _T],
     /,
     *,
@@ -40,14 +40,14 @@ def autopmap(
 
 
 @overload
-def autopmap(
+def parallelize(
     *,
     max_devices: int | None = ...,
     remainder_strategy: Literal["pad", "drop", "strict"] = ...,
 ) -> Callable[[Callable[_P, _T]], Callable[_P, _T]]: ...
 
 
-def autopmap(
+def parallelize(
     func: Callable[_P, _T] | None = None,
     /,
     *,
@@ -88,10 +88,10 @@ def autopmap(
         msg = f"invalid remainder_strategy: {remainder_strategy}"
         raise ValueError(msg)
 
-    def autopmap_decorator(func: Callable[_P, _T]) -> Callable[_P, _T]:
+    def parallelize_decorator(func: Callable[_P, _T]) -> Callable[_P, _T]:
         @functools.wraps(func)
         @jax.jit
-        def autopmap_wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _T:
+        def parallelize_wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _T:
             device_count = jax.device_count()
             if max_devices is not None and max_devices > device_count:
                 msg = (
@@ -102,8 +102,8 @@ def autopmap(
 
             if max_devices != 1 and device_count == 1:
                 msg = (
-                    "autopmap: parallelization requested but only a single JAX device"
-                    " is available"
+                    "parallelize: parallelization requested but only a single JAX"
+                    " device is available"
                 )
                 if jax.default_backend() == "cpu" and multiprocessing.cpu_count() > 1:
                     msg += (
@@ -167,6 +167,6 @@ def autopmap(
 
                     return jax.tree.map(lambda x: x[:batch_size], padded_output)
 
-        return autopmap_wrapper
+        return parallelize_wrapper
 
-    return autopmap_decorator(func) if func is not None else autopmap_decorator
+    return parallelize_decorator(func) if func is not None else parallelize_decorator
