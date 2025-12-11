@@ -34,18 +34,16 @@ def autopmap(
     func: Callable[_P, _T],
     /,
     *,
-    max_devices: int | None = None,
-    remainder_strategy: Literal["pad", "drop", "strict"] = "pad",
-    gather: bool = False,
+    max_devices: int | None = ...,
+    remainder_strategy: Literal["pad", "drop", "strict"] = ...,
 ) -> Callable[_P, _T]: ...
 
 
 @overload
 def autopmap(
     *,
-    max_devices: int | None = None,
-    remainder_strategy: Literal["pad", "drop", "strict"] = "pad",
-    gather: bool = False,
+    max_devices: int | None = ...,
+    remainder_strategy: Literal["pad", "drop", "strict"] = ...,
 ) -> Callable[[Callable[_P, _T]], Callable[_P, _T]]: ...
 
 
@@ -55,7 +53,6 @@ def autopmap(
     *,
     max_devices: int | None = None,
     remainder_strategy: Literal["pad", "drop", "strict"] = "pad",
-    gather: bool = False,
 ) -> Callable[_P, _T] | Callable[[Callable[_P, _T]], Callable[_P, _T]]:
     """Automatic parallelizing map. Creates a parallelized version of `func` that
     distributes computation of the leading axis of array arguments across multiple
@@ -78,8 +75,6 @@ def autopmap(
           simply dropped from the input and output.
         - `"strict"`: Ensure that the batch size is divisible by the number of devices.
           If not, a `ValueError` is raised.
-    - `gather`: If `True`, output arrays are gathered back to the first device. If
-      `False`, outputs remain sharded across devices.
 
     **Returns:**
 
@@ -144,12 +139,7 @@ def autopmap(
                         )
                         raise ValueError(msg)
 
-                    output = _pmap_strict(func, devices, *args, **kwargs)
-
-                    if gather:
-                        output = jax.device_put(output, jax.devices()[0])
-
-                    return output
+                    return _pmap_strict(func, devices, *args, **kwargs)
 
                 case "drop":
                     remainder_size = batch_size % devices
@@ -159,34 +149,7 @@ def autopmap(
                         lambda x: x[:even_size], (args, kwargs)
                     )
 
-                    output_even = _pmap_strict(func, devices, *args_even, **kwargs_even)
-
-                    if remainder_size == 0:
-                        if gather:
-                            output_even = jax.device_put(output_even, jax.devices()[0])
-
-                        return output_even
-
-                    args_remainder, kwargs_remainder = jax.tree.map(
-                        lambda x: x[even_size:], (args, kwargs)
-                    )
-
-                    output_remainder = _pmap_strict(
-                        func,
-                        remainder_size,
-                        *args_remainder,
-                        **kwargs_remainder,
-                    )
-
-                    output_even, output_remainder = jax.device_put(
-                        (output_even, output_remainder), jax.devices()[0]
-                    )
-
-                    return jax.tree.map(
-                        lambda even, rem: jnp.concatenate((even, rem), axis=0),
-                        output_even,
-                        output_remainder,
-                    )
+                    return _pmap_strict(func, devices, *args_even, **kwargs_even)
 
                 case "pad":
                     pad_size = (-batch_size) % devices
@@ -202,12 +165,7 @@ def autopmap(
                         func, devices, *padded_args, **padded_kwargs
                     )
 
-                    output = jax.tree.map(lambda x: x[:batch_size], padded_output)
-
-                    if gather:
-                        output = jax.device_put(output, jax.devices()[0])
-
-                    return output
+                    return jax.tree.map(lambda x: x[:batch_size], padded_output)
 
         return autopmap_wrapper
 
