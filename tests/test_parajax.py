@@ -4,14 +4,14 @@ import time
 import jax
 import jax.numpy as jnp
 import pytest
-from parajax import autopmap
+from parajax import parallelize
 
 jax.config.update("jax_num_cpu_devices", multiprocessing.cpu_count())
 
 
 @pytest.mark.parametrize("x", [jnp.arange(97), jnp.arange(97 * 2).reshape(97, 2)])
 def test_square(x: jnp.ndarray) -> None:
-    @autopmap
+    @parallelize
     def square(x: float | jax.Array) -> float | jax.Array:
         return x**2
 
@@ -26,7 +26,7 @@ def test_square(x: jnp.ndarray) -> None:
 
 
 def test_multiple_args() -> None:
-    @autopmap
+    @parallelize
     def add_mul(
         x: float | jax.Array, y: float | jax.Array
     ) -> tuple[float | jax.Array, float | jax.Array]:
@@ -50,12 +50,12 @@ def test_vmap_compatibility() -> None:
     y = jnp.arange(97, 0, -1)
     z = jnp.arange(97, 194)
 
-    assert jnp.all(autopmap(f)((x, y), z=z)["result"] == f((x, y), z=z)["result"])
+    assert jnp.all(parallelize(f)((x, y), z=z)["result"] == f((x, y), z=z)["result"])
 
 
 @pytest.mark.parametrize("max_devices", range(1, multiprocessing.cpu_count()))
 def test_max_devices(*, max_devices: int) -> None:
-    @autopmap(max_devices=max_devices)
+    @parallelize(max_devices=max_devices)
     def square(x: float | jax.Array) -> float | jax.Array:
         return x**2
 
@@ -66,7 +66,7 @@ def test_max_devices(*, max_devices: int) -> None:
 
 
 def test_strict_remainder_strategy() -> None:
-    @autopmap(max_devices=2, remainder_strategy="strict")
+    @parallelize(max_devices=2, remainder_strategy="strict")
     def square(x: float | jax.Array) -> float | jax.Array:
         return x**2
 
@@ -77,7 +77,7 @@ def test_strict_remainder_strategy() -> None:
 
 
 def test_drop_remainder_strategy() -> None:
-    @autopmap(max_devices=2, remainder_strategy="drop")
+    @parallelize(max_devices=2, remainder_strategy="drop")
     def square(x: float | jax.Array) -> float | jax.Array:
         return x**2
 
@@ -95,7 +95,7 @@ def test_speedup() -> None:
 
         return jax.lax.fori_loop(0, 10_000, body_fun, x)
 
-    parallel_heavy_compute = autopmap(heavy_compute, max_devices=2)
+    parallel_heavy_compute = parallelize(heavy_compute, max_devices=2)
 
     x = jnp.arange(10_000, dtype=float)
 
@@ -115,24 +115,24 @@ def test_speedup() -> None:
 
 def test_invalid() -> None:
     with pytest.raises(ValueError, match="max_devices"):
-        autopmap(max_devices=0)(lambda x: x)
+        parallelize(max_devices=0)(lambda x: x)
 
     with pytest.raises(ValueError, match="remainder_strategy"):
-        autopmap(remainder_strategy="invalid")(lambda x: x)  # ty: ignore[invalid-argument-type]
+        parallelize(remainder_strategy="invalid")(lambda x: x)  # ty: ignore[invalid-argument-type]
 
-    @autopmap
+    @parallelize
     def f(x: jax.Array, y: jax.Array) -> jax.Array:
         return x + y
 
     with pytest.raises(ValueError, match="mismatched"):
         f(jnp.arange(10), jnp.arange(5))
 
-    f2 = autopmap(remainder_strategy="strict", max_devices=2)(lambda x: x)
+    f2 = parallelize(remainder_strategy="strict", max_devices=2)(lambda x: x)
     with pytest.raises(ValueError, match="strict"):
         f2(jnp.arange(3))
 
     with pytest.raises(ValueError, match="no arguments"):
-        autopmap(lambda: None)()
+        parallelize(lambda: None)()
 
     with pytest.raises(ValueError, match="max_devices"):
-        autopmap(max_devices=1000)(lambda x: x)(jnp.arange(10))
+        parallelize(max_devices=1000)(lambda x: x)(jnp.arange(10))
