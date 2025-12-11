@@ -34,16 +34,16 @@ def autopmap(
     func: Callable[_P, _T],
     /,
     *,
-    max_devices: int | None = None,
-    remainder_strategy: Literal["pad", "tail", "drop", "strict"] = "pad",
+    max_devices: int | None = ...,
+    remainder_strategy: Literal["pad", "drop", "strict"] = ...,
 ) -> Callable[_P, _T]: ...
 
 
 @overload
 def autopmap(
     *,
-    max_devices: int | None = None,
-    remainder_strategy: Literal["pad", "tail", "drop", "strict"] = "pad",
+    max_devices: int | None = ...,
+    remainder_strategy: Literal["pad", "drop", "strict"] = ...,
 ) -> Callable[[Callable[_P, _T]], Callable[_P, _T]]: ...
 
 
@@ -52,7 +52,7 @@ def autopmap(
     /,
     *,
     max_devices: int | None = None,
-    remainder_strategy: Literal["pad", "tail", "drop", "strict"] = "pad",
+    remainder_strategy: Literal["pad", "drop", "strict"] = "pad",
 ) -> Callable[_P, _T] | Callable[[Callable[_P, _T]], Callable[_P, _T]]:
     """Automatic parallelizing map. Creates a parallelized version of `func` that
     distributes computation of the leading axis of array arguments across multiple
@@ -71,8 +71,6 @@ def autopmap(
           to make the batch size divisible by the number of devices. The padding is done
           by repeating the last element. The output is then unpadded to match the
           original batch size.
-        - `"tail"`: The extra elements that do not fit evenly into the devices are
-          processed in a second pass on only as many devices as needed.
         - `"drop"`: The extra elements that do not fit evenly into the devices are
           simply dropped from the input and output.
         - `"strict"`: Ensure that the batch size is divisible by the number of devices.
@@ -86,7 +84,7 @@ def autopmap(
         msg = "max_devices must be at least 1"
         raise ValueError(msg)
 
-    if remainder_strategy not in {"pad", "tail", "drop", "strict"}:
+    if remainder_strategy not in {"pad", "drop", "strict"}:
         msg = f"invalid remainder_strategy: {remainder_strategy}"
         raise ValueError(msg)
 
@@ -143,7 +141,7 @@ def autopmap(
 
                     return _pmap_strict(func, devices, *args, **kwargs)
 
-                case "tail" | "drop":
+                case "drop":
                     remainder_size = batch_size % devices
                     even_size = batch_size - remainder_size
 
@@ -151,31 +149,7 @@ def autopmap(
                         lambda x: x[:even_size], (args, kwargs)
                     )
 
-                    output_even = _pmap_strict(func, devices, *args_even, **kwargs_even)
-
-                    if remainder_strategy == "drop" or remainder_size == 0:
-                        return output_even
-
-                    args_remainder, kwargs_remainder = jax.tree.map(
-                        lambda x: x[even_size:], (args, kwargs)
-                    )
-
-                    output_remainder = _pmap_strict(
-                        func,
-                        remainder_size,
-                        *args_remainder,
-                        **kwargs_remainder,
-                    )
-
-                    output_even, output_remainder = jax.device_put(
-                        (output_even, output_remainder), jax.devices()[0]
-                    )
-
-                    return jax.tree.map(
-                        lambda even, rem: jnp.concatenate((even, rem), axis=0),
-                        output_even,
-                        output_remainder,
-                    )
+                    return _pmap_strict(func, devices, *args_even, **kwargs_even)
 
                 case "pad":
                     pad_size = (-batch_size) % devices
