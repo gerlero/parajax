@@ -102,6 +102,7 @@ def autopmap(
 
     def autopmap_decorator(func: Callable[_P, _T]) -> Callable[_P, _T]:
         @functools.wraps(func)
+        @jax.jit
         def autopmap_wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _T:
             device_count = jax.device_count()
             if max_devices is not None and max_devices > device_count:
