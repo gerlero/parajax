@@ -17,9 +17,9 @@
 ## Features
 
 - 🚀 **Device-parallel execution**: run across multiple CPUs, GPUs or TPUs automatically
-- ⚡ **Fully composable** with [`jax.jit`](https://docs.jax.dev/en/latest/_autosummary/jax.jit.html), [`jax.vmap`](https://docs.jax.dev/en/latest/_autosummary/jax.vmap.html), and other JAX transformations
+- 🧩 **Fully composable** with [`jax.jit`](https://docs.jax.dev/en/latest/_autosummary/jax.jit.html), [`jax.vmap`](https://docs.jax.dev/en/latest/_autosummary/jax.vmap.html), and other JAX transformations
 - 🪄 **Automatic handling** of input shapes not divisible by the number of devices
-- 🎯 **Simple interface**: just decorate your function with `@parallelize`
+- 🎯 **Simple interface**: just decorate your function with [`@parallelize`](https://parajax.readthedocs.io/en/stable/#parajax.parallelize)
 
 ## Installation
 
