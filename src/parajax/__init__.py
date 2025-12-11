@@ -35,7 +35,7 @@ def autopmap(
     /,
     *,
     max_devices: int | None = None,
-    remainder_strategy: Literal["pad", "tail", "drop", "strict"] = "pad",
+    remainder_strategy: Literal["pad", "drop", "strict"] = "pad",
     gather: bool = False,
 ) -> Callable[_P, _T]: ...
 
@@ -44,7 +44,7 @@ def autopmap(
 def autopmap(
     *,
     max_devices: int | None = None,
-    remainder_strategy: Literal["pad", "tail", "drop", "strict"] = "pad",
+    remainder_strategy: Literal["pad", "drop", "strict"] = "pad",
     gather: bool = False,
 ) -> Callable[[Callable[_P, _T]], Callable[_P, _T]]: ...
 
@@ -54,7 +54,7 @@ def autopmap(
     /,
     *,
     max_devices: int | None = None,
-    remainder_strategy: Literal["pad", "tail", "drop", "strict"] = "pad",
+    remainder_strategy: Literal["pad", "drop", "strict"] = "pad",
     gather: bool = False,
 ) -> Callable[_P, _T] | Callable[[Callable[_P, _T]], Callable[_P, _T]]:
     """Automatic parallelizing map. Creates a parallelized version of `func` that
@@ -74,8 +74,6 @@ def autopmap(
           to make the batch size divisible by the number of devices. The padding is done
           by repeating the last element. The output is then unpadded to match the
           original batch size.
-        - `"tail"`: The extra elements that do not fit evenly into the devices are
-          processed in a second pass on only as many devices as needed.
         - `"drop"`: The extra elements that do not fit evenly into the devices are
           simply dropped from the input and output.
         - `"strict"`: Ensure that the batch size is divisible by the number of devices.
@@ -91,14 +89,9 @@ def autopmap(
         msg = "max_devices must be at least 1"
         raise ValueError(msg)
 
-    if remainder_strategy not in {"pad", "tail", "drop", "strict"}:
+    if remainder_strategy not in {"pad", "drop", "strict"}:
         msg = f"invalid remainder_strategy: {remainder_strategy}"
         raise ValueError(msg)
-
-    if not gather and remainder_strategy == "tail":
-        msg = "autopmap: overriding gather to True with remainder_strategy='tail'"
-        warnings.warn(msg, UserWarning, stacklevel=2)
-        gather = True
 
     def autopmap_decorator(func: Callable[_P, _T]) -> Callable[_P, _T]:
         @functools.wraps(func)
@@ -158,7 +151,7 @@ def autopmap(
 
                     return output
 
-                case "tail" | "drop":
+                case "drop":
                     remainder_size = batch_size % devices
                     even_size = batch_size - remainder_size
 
@@ -168,7 +161,7 @@ def autopmap(
 
                     output_even = _pmap_strict(func, devices, *args_even, **kwargs_even)
 
-                    if remainder_strategy == "drop" or remainder_size == 0:
+                    if remainder_size == 0:
                         if gather:
                             output_even = jax.device_put(output_even, jax.devices()[0])
 
