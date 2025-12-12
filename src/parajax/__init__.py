@@ -65,16 +65,19 @@ def parallelize(
         can wrap it with `jax.vmap` first. For passing non-batched arguments, consider
         using `functools.partial` or a lambda function.
     max_devices: The maximum number of JAX devices to use for parallelization.
-    remainder_strategy: Strategy to handle cases where the batch size is not
-        divisible by the number of devices. Options are:
+    remainder_strategy: Specifies how to handle cases where the batch size is not
+        divisible by the number of devices, which is not directly supported by JAX. The
+        available strategies are:
         - `"pad"` (default): Transparently pad the input arrays along the leading axis
-          to make the batch size divisible by the number of devices. The padding is done
-          by repeating the last element. The output is then automatically unpadded to
-          match the original batch size, with no visible effect to the user.
-        - `"drop"`: The extra elements that do not fit evenly into the devices are
-          simply dropped from the computation and output.
-        - `"strict"`: Assert that the batch size is divisible by the number of devices.
-          If this is not the case, a `ValueError` is raised.
+            to make the batch size divisible by the number of devices. The padding is
+            done by repeating the last element. The output is then automatically
+            unpadded to match the original batch size, with no visible effect to the
+            caller.
+        - `"drop"`: Use with caution. The extra elements that do not fit evenly into the
+            devices are dropped from the computation, resulting in a smaller output
+            size.
+        - `"strict"`: Will only work if the batch size is divisible by the number of
+            devices. Otherwise, a `ValueError` will be raised.
 
     Returns:
         The decorator returns a parallel version of `func` with the same signature.
