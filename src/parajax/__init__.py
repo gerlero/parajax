@@ -21,7 +21,7 @@ def _parallelize_strict(func: Callable[_P, _T], *, devices: int) -> Callable[_P,
             lambda args, kwargs: func(
                 *args, **kwargs
             ),  # shard_map does not support keyword arguments
-            mesh=jax.make_mesh((devices,), ("devices",)),
+            mesh=jax.make_mesh((devices,), ("devices",), (jax.sharding.AxisType.Auto,)),
             in_specs=P("devices"),
             out_specs=P("devices"),
         )(args, kwargs)
