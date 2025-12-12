@@ -133,27 +133,27 @@ def parallelize(
         @jax.jit
         def parallelize_wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _T:
             device_count = jax.device_count()
-            if max_devices is not None and max_devices > device_count:
-                msg = (
-                    "max_devices cannot be greater than the number of"
-                    f" available JAX devices (={device_count})"
-                )
-                raise ValueError(msg)
 
             if max_devices != 1 and device_count == 1:
                 msg = (
-                    "parallelize: parallelization requested but only a single JAX"
-                    " device is available"
+                    "parajax.parallelize: parallelization requested but only a single"
+                    " JAX device is available."
                 )
                 if jax.default_backend() == "cpu" and multiprocessing.cpu_count() > 1:
                     msg += (
                         '\nSet \'jax.config.update("jax_num_cpu_devices",'
-                        f" {multiprocessing.cpu_count()})' before using JAX to enable"
-                        " all available CPUs."
-                        "\nRead https://docs.jax.dev/en/latest/sharded-computation.html"
-                        " for details."
+                        f" {multiprocessing.cpu_count()})' right after importing JAX to"
+                        " enable all available CPUs."
+                        "\nSee https://parajax.readthedocs.io for more information."
                     )
                 warnings.warn(msg, UserWarning, stacklevel=2)
+
+            if max_devices is not None and max_devices > device_count:
+                msg = (
+                    "max_devices cannot be greater than the number of available JAX"
+                    f" devices (={device_count})"
+                )
+                raise ValueError(msg)
 
             devices = max_devices if max_devices is not None else device_count
 
