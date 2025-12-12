@@ -14,21 +14,19 @@ _P = ParamSpec("_P")
 _T = TypeVar("_T")
 
 
-def _pmap_strict(
-    func: Callable[_P, _T], devices: int, /, *args: _P.args, **kwargs: _P.kwargs
-) -> _T:
-    return jax.shard_map(
-        lambda args, kwargs: func(
-            *args, **kwargs
-        ),  # shard_map does not support keyword arguments
-        mesh=jax.make_mesh((devices,), ("devices",)),
-        in_specs=P(
-            "devices",
-        ),
-        out_specs=P(
-            "devices",
-        ),
-    )(args, kwargs)
+def _parallelize_strict(func: Callable[_P, _T], *, devices: int) -> Callable[_P, _T]:
+    @functools.wraps(func)
+    def parallelize_strict_wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _T:
+        return jax.shard_map(
+            lambda args, kwargs: func(
+                *args, **kwargs
+            ),  # shard_map does not support keyword arguments
+            mesh=jax.make_mesh((devices,), ("devices",)),
+            in_specs=P("devices"),
+            out_specs=P("devices"),
+        )(args, kwargs)
+
+    return parallelize_strict_wrapper
 
 
 @overload
@@ -171,6 +169,7 @@ def parallelize(
                 raise ValueError(msg) from None
 
             devices = min(devices, batch_size)
+            pfunc = _parallelize_strict(func, devices=devices)
 
             match remainder_strategy:
                 case "strict":
@@ -181,7 +180,7 @@ def parallelize(
                         )
                         raise ValueError(msg)
 
-                    return _pmap_strict(func, devices, *args, **kwargs)
+                    return pfunc(*args, **kwargs)
 
                 case "drop":
                     remainder_size = batch_size % devices
@@ -191,7 +190,7 @@ def parallelize(
                         lambda x: x[:even_size], (args, kwargs)
                     )
 
-                    return _pmap_strict(func, devices, *args_even, **kwargs_even)
+                    return pfunc(*args_even, **kwargs_even)
 
                 case "pad":
                     pad_size = (-batch_size) % devices
@@ -203,9 +202,7 @@ def parallelize(
                         (args, kwargs),
                     )
 
-                    padded_output = _pmap_strict(
-                        func, devices, *padded_args, **padded_kwargs
-                    )
+                    padded_output = pfunc(*padded_args, **padded_kwargs)
 
                     return jax.tree.map(lambda x: x[:batch_size], padded_output)
 
