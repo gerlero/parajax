@@ -58,24 +58,24 @@ def parallelize(
     leading axis of array arguments across multiple devices.
 
     Args:
-    func: The function to be parallelized. It should accept array arguments with a
-        leading batch dimension. If your function cannot work in a batched manner, you
-        can wrap it with `jax.vmap` first. For passing non-batched arguments, consider
-        using `functools.partial` or a lambda function.
-    max_devices: The maximum number of JAX devices to use for parallelization.
-    remainder_strategy: Specifies how to handle cases where the batch size is not
-        divisible by the number of devices, which is not directly supported by JAX. The
-        available strategies are:
-        - `"pad"` (default): Transparently pad the input arrays along the leading axis
-            to make the batch size divisible by the number of devices. The padding is
-            done by repeating the last element. The output is then automatically
-            unpadded to match the original batch size, with no visible effect to the
-            caller.
-        - `"drop"`: Use with caution. The extra elements that do not fit evenly into the
-            devices are dropped from the computation, resulting in a smaller output
-            size.
-        - `"strict"`: Will only work if the batch size is divisible by the number of
-            devices. Otherwise, a `ValueError` will be raised.
+        func: The function to be parallelized. It should accept array arguments with a
+            leading batch dimension. If your function cannot work in a batched manner,
+            you can wrap it with `jax.vmap` first. For passing non-batched arguments,
+            consider using `functools.partial` or a lambda function.
+        max_devices: The maximum number of JAX devices to use for parallelization.
+        remainder_strategy: Specifies how to handle cases where the batch size is not
+            divisible by the number of devices, which is not directly supported by JAX.
+            The available strategies are:
+
+            - `'pad'`: Transparently pad the input arrays along the leading axis to make
+                the batch size divisible by the number of devices. The padding is done
+                by repeating the last element. The output is then automatically unpadded
+                to match the expected size, with no visible effect to the caller.
+            - `'drop'`: Use with caution. The extra elements that do not fit evenly into
+                the devices are dropped from the computation, resulting in a smaller
+                output size.
+            - `'strict'`: Will only work if the batch size is divisible by the number of
+                devices. Otherwise, a `ValueError` will be raised.
 
     Returns:
         The decorator returns a parallel version of `func` with the same signature.
