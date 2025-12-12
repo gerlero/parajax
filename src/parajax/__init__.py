@@ -8,23 +8,21 @@ from typing import Literal, ParamSpec, TypeVar, overload
 
 import jax
 import jax.numpy as jnp
-from jax.sharding import PartitionSpec as P
 
 _P = ParamSpec("_P")
 _T = TypeVar("_T")
 
 
 def _parallelize_strict(func: Callable[_P, _T], *, devices: int) -> Callable[_P, _T]:
+    pmapped_func = jax.pmap(func, axis_name="parajax")
+
     @functools.wraps(func)
     def parallelize_strict_wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _T:
-        return jax.shard_map(
-            lambda args, kwargs: func(
-                *args, **kwargs
-            ),  # shard_map does not support keyword arguments
-            mesh=jax.make_mesh((devices,), ("devices",)),
-            in_specs=P("devices"),
-            out_specs=P("devices"),
-        )(args, kwargs)
+        reshaped_args, reshaped_kwargs = jax.tree.map(
+            lambda x: x.reshape(devices, -1, *x.shape[1:]), (args, kwargs)
+        )
+        pmapped_output = pmapped_func(*reshaped_args, **reshaped_kwargs)
+        return jax.tree.map(lambda x: x.reshape(-1, *x.shape[2:]), pmapped_output)
 
     return parallelize_strict_wrapper
 
