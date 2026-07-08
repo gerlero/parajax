@@ -19,9 +19,9 @@ def test_square(x: jnp.ndarray) -> None:
     y = square(x)
     assert jnp.all(y == x**2)
 
-    square = jax.jit(square)
-    y = square(x)
-    y = square(x)
+    jitted_square = jax.jit(square)
+    y = jitted_square(x)
+    y = jitted_square(x)
     assert jnp.all(y == x**2)
 
 
