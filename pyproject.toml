@@ -49,16 +49,5 @@ Homepage = "https://github.com/gerlero/parajax"
 Repository = "https://github.com/gerlero/parajax"
 Documentation = "https://parajax.readthedocs.io/"
 
-[tool.ruff.lint]
-extend-select = ["ALL"]
-extend-ignore = [
-    "ANN401",
-    "C901",
-    "COM812",
-    "PLR0912",
-    "PLR0915",
-    "PLR2004",
-]
-
 [tool.ruff.lint.pydocstyle]
 convention = "google"
