@@ -4,6 +4,7 @@ import time
 import jax
 import jax.numpy as jnp
 import pytest
+
 from parajax import parallelize
 
 jax.config.update("jax_num_cpu_devices", multiprocessing.cpu_count())
