@@ -53,8 +53,6 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         allow-prereleases: true
-    - name: Install test dependencies
-      run: uv sync --python ${{ matrix.python-version }} --group test --resolution ${{ matrix.dependency-resolution }}
     - name: Test with pytest
       run: >
         uv run
