@@ -4,20 +4,19 @@ import functools
 import multiprocessing
 import warnings
 from collections.abc import Callable
-from typing import Literal, ParamSpec, TypeVar, overload
+from typing import Literal, overload
 
 import jax
 import jax.numpy as jnp
 
-_P = ParamSpec("_P")
-_T = TypeVar("_T")
 
-
-def _parallelize_strict(func: Callable[_P, _T], *, devices: int) -> Callable[_P, _T]:
+def _parallelize_strict[**P, T](
+    func: Callable[P, T], *, devices: int
+) -> Callable[P, T]:
     pmapped_func = jax.pmap(func, axis_name="parajax")
 
     @functools.wraps(func)
-    def parallelize_strict_wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _T:
+    def parallelize_strict_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         reshaped_args, reshaped_kwargs = jax.tree.map(
             lambda x: x.reshape(devices, -1, *x.shape[1:]), (args, kwargs)
         )
@@ -28,30 +27,30 @@ def _parallelize_strict(func: Callable[_P, _T], *, devices: int) -> Callable[_P,
 
 
 @overload
-def parallelize(
-    func: Callable[_P, _T],
+def parallelize[**P, T](
+    func: Callable[P, T],
     /,
     *,
     max_devices: int | None = ...,
     remainder_strategy: Literal["pad", "drop", "strict"] = ...,
-) -> Callable[_P, _T]: ...
+) -> Callable[P, T]: ...
 
 
 @overload
-def parallelize(
+def parallelize[**P, T](
     *,
     max_devices: int | None = ...,
     remainder_strategy: Literal["pad", "drop", "strict"] = ...,
-) -> Callable[[Callable[_P, _T]], Callable[_P, _T]]: ...
+) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
 
 
-def parallelize(
-    func: Callable[_P, _T] | None = None,
+def parallelize[**P, T](
+    func: Callable[P, T] | None = None,
     /,
     *,
     max_devices: int | None = None,
     remainder_strategy: Literal["pad", "drop", "strict"] = "pad",
-) -> Callable[_P, _T] | Callable[[Callable[_P, _T]], Callable[_P, _T]]:
+) -> Callable[P, T] | Callable[[Callable[P, T]], Callable[P, T]]:
     """Automatic parallelizing map.
 
     Creates a parallelized version of `func` that distributes computation of the
@@ -130,10 +129,10 @@ def parallelize(
         msg = f"invalid remainder_strategy: {remainder_strategy}"
         raise ValueError(msg)
 
-    def parallelize_decorator(func: Callable[_P, _T]) -> Callable[_P, _T]:
+    def parallelize_decorator(func: Callable[P, T]) -> Callable[P, T]:
         @functools.wraps(func)
         @jax.jit
-        def parallelize_wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _T:
+        def parallelize_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             device_count = jax.device_count()
 
             if max_devices != 1 and device_count == 1:
