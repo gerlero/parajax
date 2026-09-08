@@ -106,19 +106,20 @@ def parallelize(
         ys = square(xs)  # Parallelized across 4 devices
         ```
 
-    Composability with vmap:
+    Composability with jit and vmap:
         ```python
         import jax
         import jax.numpy as jnp
         from parajax import parallelize
 
+        @jax.jit
         @parallelize
         @jax.vmap
-        def relu_single(x):
+        def relu(x):
             return jnp.maximum(x, 0)
 
         xs = jnp.arange(-6_000, 6_000)
-        ys = relu_single(xs)  # Parallelized over the batch
+        ys = relu(xs)  # Will run in parallel
         ```
     """
     if max_devices is not None and max_devices < 1:
