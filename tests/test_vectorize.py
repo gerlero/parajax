@@ -5,8 +5,8 @@ import pytest
 from parajax import vectorize
 
 
-@pytest.mark.parametrize("batch_size", [0, 1, 2])
-def test_scalar_broadcasting(*, batch_size: int) -> None:
+@pytest.mark.parametrize("batch_size", [0, None, 1, 2])
+def test_scalar_broadcasting(*, batch_size: int | None) -> None:
     @vectorize(batch_size=batch_size)
     def f(x: float | jax.Array, y: float | jax.Array) -> float | jax.Array:
         assert jnp.ndim(x) == 0
@@ -19,8 +19,8 @@ def test_scalar_broadcasting(*, batch_size: int) -> None:
     assert jnp.array_equal(f(x, y), x + 2 * y)
 
 
-@pytest.mark.parametrize("batch_size", [0, 1, 2])
-def test_matvec(*, batch_size: int) -> None:
+@pytest.mark.parametrize("batch_size", [0, None, 1, 2])
+def test_matvec(*, batch_size: int | None) -> None:
     @vectorize(ndim=(2, 1), batch_size=batch_size)
     def matvec(A: jax.Array, x: jax.Array) -> jax.Array:
         assert A.ndim == 2
@@ -37,8 +37,8 @@ def test_matvec(*, batch_size: int) -> None:
     assert actual == pytest.approx(expected)
 
 
-@pytest.mark.parametrize("batch_size", [0, 1, 2])
-def test_passthrough(*, batch_size: int) -> None:
+@pytest.mark.parametrize("batch_size", [0, None, 1, 2])
+def test_passthrough(*, batch_size: int | None) -> None:
     @vectorize(ndim=(2, 1), batch_size=batch_size)
     def matvec(A: jax.Array, x: jax.Array) -> jax.Array:
         assert A.ndim == 2
@@ -55,8 +55,8 @@ def test_passthrough(*, batch_size: int) -> None:
     assert actual == pytest.approx(expected)
 
 
-@pytest.mark.parametrize("batch_size", [0, 1, 2])
-def test_batching_from_lower_rank_argument(*, batch_size: int) -> None:
+@pytest.mark.parametrize("batch_size", [0, None, 1, 2])
+def test_batching_from_lower_rank_argument(*, batch_size: int | None) -> None:
     @vectorize(ndim=(2, 1), batch_size=batch_size)
     def matvec(A: jax.Array, x: jax.Array) -> jax.Array:
         assert A.ndim == 2
@@ -73,8 +73,8 @@ def test_batching_from_lower_rank_argument(*, batch_size: int) -> None:
     assert actual == pytest.approx(expected)
 
 
-@pytest.mark.parametrize("batch_size", [0, 1, 2])
-def test_singleton_dimension(*, batch_size: int) -> None:
+@pytest.mark.parametrize("batch_size", [0, None, 1, 2])
+def test_singleton_dimension(*, batch_size: int | None) -> None:
     @vectorize(ndim=1, batch_size=batch_size)
     def add(x: jax.Array, y: jax.Array) -> jax.Array:
         assert x.ndim == 1
@@ -90,8 +90,8 @@ def test_singleton_dimension(*, batch_size: int) -> None:
     assert jnp.array_equal(actual, x + y)
 
 
-@pytest.mark.parametrize("batch_size", [0, 1, 2])
-def test_static_argument(*, batch_size: int) -> None:
+@pytest.mark.parametrize("batch_size", [0, None, 1, 2])
+def test_static_argument(*, batch_size: int | None) -> None:
     @vectorize(ndim={"A": 2, "x": 1}, batch_size=batch_size)
     def matvec(A: jax.Array, /, *, x: jax.Array, scale: float = 1) -> jax.Array:
         assert A.ndim == 2
@@ -108,8 +108,8 @@ def test_static_argument(*, batch_size: int) -> None:
     assert actual == pytest.approx(expected)
 
 
-@pytest.mark.parametrize("batch_size", [0, 1, 2])
-def test_keyword_argument(*, batch_size: int) -> None:
+@pytest.mark.parametrize("batch_size", [0, None, 1, 2])
+def test_keyword_argument(*, batch_size: int | None) -> None:
     @vectorize(ndim={"x": 0, "y": 0}, batch_size=batch_size)
     def f(x: jax.Array, *, y: jax.Array) -> jax.Array:
         assert x.ndim == 0
@@ -122,8 +122,8 @@ def test_keyword_argument(*, batch_size: int) -> None:
     assert jnp.array_equal(f(x, y=y), x + y)
 
 
-@pytest.mark.parametrize("batch_size", [0, 1, 2])
-def test_pytree(*, batch_size: int) -> None:
+@pytest.mark.parametrize("batch_size", [0, None, 1, 2])
+def test_pytree(*, batch_size: int | None) -> None:
     @vectorize(ndim={"state": 0}, batch_size=batch_size)
     def f(state: dict[str, jax.Array]) -> dict[str, jax.Array]:
         assert state["x"].ndim == 0
@@ -144,8 +144,8 @@ def test_pytree(*, batch_size: int) -> None:
     assert jnp.array_equal(actual["diff"], state["x"] - state["y"])
 
 
-@pytest.mark.parametrize("batch_size", [0, 1, 2])
-def test_jit(*, batch_size: int) -> None:
+@pytest.mark.parametrize("batch_size", [0, None, 1, 2])
+def test_jit(*, batch_size: int | None) -> None:
     @jax.jit
     @vectorize(ndim=(2, 1), batch_size=batch_size)
     def matvec(A: jax.Array, x: jax.Array) -> jax.Array:
