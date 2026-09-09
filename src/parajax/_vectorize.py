@@ -56,7 +56,7 @@ def _map[T](
     func: Callable[..., T],
     *,
     in_axes: tuple[object, ...],
-    batch_size: int,
+    batch_size: int | None,
 ) -> Callable[..., T]:
     if batch_size == 0:
         return jax.vmap(func, in_axes=in_axes)
@@ -92,7 +92,7 @@ def vectorize[**P, T](
     /,
     *,
     ndim: int | None | Sequence[int | None] | Mapping[str, int | None] = ...,
-    batch_size: int = ...,
+    batch_size: int | None = ...,
 ) -> Callable[P, T]: ...
 
 
@@ -100,7 +100,7 @@ def vectorize[**P, T](
 def vectorize[**P, T](
     *,
     ndim: int | None | Sequence[int | None] | Mapping[str, int | None] = ...,
-    batch_size: int = ...,
+    batch_size: int | None = ...,
 ) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
 
 
@@ -109,7 +109,7 @@ def vectorize[**P, T](
     /,
     *,
     ndim: int | None | Sequence[int | None] | Mapping[str, int | None] = 0,
-    batch_size: int = 0,
+    batch_size: int | None = 0,
 ) -> Callable[P, T] | Callable[[Callable[P, T]], Callable[P, T]]:
     """Automatically vectorize a function over broadcastable leading dimensions.
 
@@ -162,9 +162,11 @@ def vectorize[**P, T](
             automatically.
 
         batch_size: Maximum batch size used when evaluating each mapped dimension.
-            If zero (the default), the complete dimension is processed at once,
-            equivalently to `jax.vmap`. A positive value evaluates the mapped
-            computation in smaller batches using `jax.lax.map`.
+            By default, the complete dimension is processed at once, equivalently
+            to `jax.vmap`. If `None`, each mapped dimension is processedone element
+            at a time, equivalently to using `jax.lax.map`. A positive value is
+            passed to `jax.lax.map` to evaluate the mapped computation in smaller
+            batches.
 
     Returns:
         A function with the same call signature as `func` that accepts arbitrary
@@ -201,12 +203,19 @@ def vectorize[**P, T](
             >>> norm(jnp.ones((10, 3)), ord=1).shape
             (10,)
     """
-    if not isinstance(batch_size, int) or isinstance(batch_size, bool):
-        msg = "batch_size must be a nonnegative integer"
-        raise TypeError(msg)
-    if batch_size < 0:
-        msg = "batch_size must be a nonnegative integer"
-        raise ValueError(msg)
+    match batch_size:
+        case None:
+            pass
+        case bool():
+            msg = "batch_size must be a nonnegative integer or None"
+            raise TypeError(msg)
+        case int():
+            if batch_size < 0:
+                msg = "batch_size must be a nonnegative integer or None"
+                raise ValueError(msg)
+        case _:
+            msg = "batch_size must be a nonnegative integer or None"
+            raise TypeError(msg)
 
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         signature = inspect.signature(func)
