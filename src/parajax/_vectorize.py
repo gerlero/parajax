@@ -30,7 +30,7 @@ def _normalize_ndim(
             if unknown:
                 msg = f"unknown parameter(s) in ndim: {sorted(unknown)}"
                 raise ValueError(msg)
-            ret = dict(ndim)  # ty: ignore[no-matching-overload]
+            ret = dict(ndim)
 
         case _:
             msg = (
